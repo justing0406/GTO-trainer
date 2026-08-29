@@ -14,6 +14,7 @@ import {
   evOptimalKeys,
 } from './rules-v3.js';
 import { mixText } from './rules-v2.js';
+import { extendOpeningDrillForPlayOut } from './opening-playout-v3.js';
 
 export const EV_CATEGORY_META = ADVANCED_CATEGORY_META;
 
@@ -27,17 +28,21 @@ function toV3Scenario(scenario) {
   };
 }
 
+function prepareV3Scenario(scenario) {
+  return extendOpeningDrillForPlayOut(toV3Scenario(scenario));
+}
+
 export function listEvHands() {
   return listAdvancedHands().map(hand => ({ ...hand, strategyVersion: EV_VERSION }));
 }
 
 export function generateEvScenario(options = {}) {
-  return toV3Scenario(generateAdvancedScenario(options));
+  return prepareV3Scenario(generateAdvancedScenario(options));
 }
 
 export function resolveEvScenario(key) {
   const v2Key = String(key || '').replace(/^v3\|/, 'v2|');
-  return toV3Scenario(resolveAdvancedScenario(v2Key));
+  return prepareV3Scenario(resolveAdvancedScenario(v2Key));
 }
 
 export function publicEvScenario(scenario) {
