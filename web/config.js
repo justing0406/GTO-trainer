@@ -1,5 +1,5 @@
 window.GTO_CONFIG = {
-  // Optional: hard-code your deployed Worker URL here later, e.g.
-  // apiBaseUrl: 'https://gto-trainer-api.<your-subdomain>.workers.dev'
-  apiBaseUrl: ''
+  // The UI and API are deployed together on the same Cloudflare Worker.
+  // No URL setup is required: the trainer always talks to the site you opened.
+  apiBaseUrl: window.location.origin
 };
