@@ -2,7 +2,7 @@
 
 A personal poker strategy simulator/tester built around **Poker Strategy Rulebook v1.0**.
 
-The system purposely deals training situations rather than relying on random poker hands. It grades the decision, not the result of the cards, and explains the first meaningful mistake after the hand.
+The trainer purposely deals situations rather than relying on random poker hands. It grades the decision, not the result of the cards, and explains the first meaningful mistake after the hand.
 
 ## What is included
 
@@ -16,58 +16,66 @@ The system purposely deals training situations rather than relying on random pok
 - Rulebook and beginner-friendly poker glossary
 - Local progress dashboard with category scores, streaks, and recent mistakes
 - Adaptive **Weakest area** focus option
-- Separate Cloudflare Pages frontend and Cloudflare Worker API
 - No database required for v1.0; progress stays in browser `localStorage`
 
 ## Architecture
 
+The entire application deploys as **one Cloudflare Worker named `gto-trainer`**.
+
 ```text
 GitHub: justing0406/GTO-trainer
 │
-├── web/                 Cloudflare Pages
-│   ├── index.html       Poker table UI
-│   ├── app.js           Game client + progress tracking
-│   ├── styles.css       Responsive UI
-│   ├── config.js        Optional Worker URL override
-│   └── _headers         Browser security headers
+├── web/                    Static assets served by the Worker
+│   ├── index.html          Poker table UI
+│   ├── app.js              Game client + progress tracking
+│   ├── styles.css          Responsive UI
+│   └── config.js           Automatically uses the current origin
 │
-├── worker/              Cloudflare Worker
-│   ├── src/rules.js     Rulebook, ranges, glossary, math
-│   ├── src/scenarios.js Scenario generation + grading
-│   ├── src/index.js     HTTP API
-│   ├── tests/           Node tests
-│   └── wrangler.jsonc   Worker deployment config
+├── worker/
+│   ├── src/rules.js        Rulebook, ranges, glossary, math
+│   ├── src/scenarios.js    Scenario generation + grading
+│   ├── src/index.js        /api/* Worker routes
+│   ├── tests/              Node tests
+│   ├── package.json
+│   └── wrangler.jsonc      Worker + Static Assets deployment config
 │
-└── docs/RULEBOOK_V1.md  Human-readable strategy specification
+└── docs/RULEBOOK_V1.md     Human-readable strategy specification
 ```
 
-The Worker is deliberately authoritative for scenario construction and grading. The browser receives the visible hand state and action choices, but not opponent cards or the answer key. Opponent cards are returned only after grading.
+Cloudflare Workers Static Assets serves the files in `web/`, while `/api/*` requests run through the Worker code. The frontend therefore calls the API on the **same origin**. There is no Worker URL to paste and no separate Pages project.
+
+The Worker remains authoritative for scenario construction and grading. The browser receives the visible hand state and action choices, but not opponent cards or the answer key. Opponent cards are returned only after grading.
 
 ## Cloudflare deployment
 
-This repository is meant to be connected to **two Cloudflare projects from the same `main` branch**.
+Connect the existing **`gto-trainer` Worker** to this GitHub repository and `main` branch.
 
-### 1. Deploy the Worker
-
-In Cloudflare:
-
-1. Go to **Workers & Pages**.
-2. Create/import a Worker from GitHub.
-3. Select `justing0406/GTO-trainer`.
-4. Production branch: `main`.
-5. Root directory: `worker`.
-6. Worker name: **`gto-trainer-api`**. The Cloudflare project name must match the `name` in `worker/wrangler.jsonc`.
-7. Build command: `npm test` (recommended).
-8. Deploy command: `npx wrangler deploy`.
-9. Deploy.
-
-Copy the resulting Worker origin, for example:
+Recommended build settings:
 
 ```text
-https://gto-trainer-api.<your-workers-subdomain>.workers.dev
+Production branch: main
+Root directory: worker
+Build command: npm test
+Deploy command: npx wrangler deploy
 ```
 
-The API exposes:
+`worker/wrangler.jsonc` already sets:
+
+```text
+Worker name: gto-trainer
+Static assets: ../web
+API routes: /api/*
+```
+
+After deployment, open the Worker's normal site URL, for example:
+
+```text
+https://gto-trainer.<your-workers-subdomain>.workers.dev
+```
+
+The poker trainer should load immediately and automatically deal the first hand. No app configuration is required.
+
+The API is available on the same site:
 
 ```text
 GET  /api/health
@@ -77,55 +85,9 @@ GET  /api/scenario?mode=hand|drill&focus=...&seed=...
 POST /api/grade
 ```
 
-### 2. Deploy Pages
-
-Create a separate **Cloudflare Pages** project from the same GitHub repository:
-
-1. Production branch: `main`.
-2. Root directory: `web`.
-3. Framework preset: None.
-4. Build command: leave blank (or use `exit 0`).
-5. Build output directory: `.`
-6. Deploy.
-
-The `web` directory is intentionally dependency-free, so Pages can publish it directly.
-
-### 3. Connect Pages to the Worker
-
-After both are deployed, open the Pages site and go to **Settings** inside GTO Trainer. Paste the Worker URL and click **Save & test**.
-
-That URL is stored only in your browser. If you prefer to bake it into the site, edit:
-
-```js
-// web/config.js
-window.GTO_CONFIG = {
-  apiBaseUrl: 'https://gto-trainer-api.<your-subdomain>.workers.dev'
-};
-```
-
-and push the change to `main`.
-
-You can also configure it quickly with a one-time query string:
-
-```text
-https://<your-pages-site>.pages.dev/?api=https://gto-trainer-api.<your-subdomain>.workers.dev
-```
-
-The app saves that Worker URL locally and removes the need to rebuild Pages.
-
-### 4. Optional CORS hardening
-
-`worker/wrangler.jsonc` initially uses:
-
-```json
-"ALLOWED_ORIGIN": "*"
-```
-
-That makes first deployment painless. Once your Pages production URL is stable, replace `*` with the exact Pages/custom-domain origin and redeploy the Worker.
-
 ## Local development
 
-### Worker
+Run everything together through Wrangler:
 
 ```bash
 cd worker
@@ -134,23 +96,25 @@ npm test
 npm run dev
 ```
 
-Wrangler normally runs at `http://localhost:8787`.
+Then open the Wrangler URL, normally:
 
-### Pages frontend
-
-Serve `web/` with any static server. For example:
-
-```bash
-python3 -m http.server 8080 --directory web
+```text
+http://localhost:8787
 ```
 
-When the frontend is opened on localhost it automatically tries `http://localhost:8787` for the Worker.
+The same local origin serves both the poker interface and the API.
+
+To validate the deploy bundle without publishing:
+
+```bash
+npm run check:deploy
+```
 
 ## Training behavior
 
 ### Training Hands
 
-Scripted hands can contain multiple decisions. Feedback is withheld until the hand ends, matching the goal of reviewing the hand afterward. If you deviate from the intended teaching line but do not fold, later streets continue along the scripted training line so the trainer can still test later concepts.
+Scripted hands can contain multiple decisions. Feedback is withheld until the hand ends. If you deviate from the intended teaching line but do not fold, later streets continue along the scripted training line so the trainer can still test later concepts.
 
 ### Decision Drills
 
