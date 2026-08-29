@@ -59,12 +59,54 @@ test('v3 grades folding a premium pure open as a major EV mistake', () => {
   assert.equal(evGradeLabel(ev.evLossBb), 'Major Mistake');
 });
 
+test('v3 opening decision drills continue to flop, turn, and river after a non-fold action', () => {
+  const scenario = generateEvScenario({ mode: 'drill', focus: 'opening', seed: 4242 });
+  assert.equal(scenario.scriptedContinuation, true);
+  assert.ok(scenario.steps.some(step => step.street === 'Flop'));
+  assert.ok(scenario.steps.some(step => step.street === 'Turn'));
+  assert.ok(scenario.steps.some(step => step.street === 'River'));
+
+  const preflop = scenario.steps[0];
+  const raise = preflop.options.find(option => option.key === 'raise');
+  assert.ok(raise);
+  assert.ok(raise.nextStepId);
+  assert.ok(scenario.steps.some(step => step.id === raise.nextStepId));
+
+  const publicView = publicEvScenario(scenario);
+  const publicRaise = publicView.steps[0].options.find(option => option.key === 'raise');
+  assert.equal(publicRaise.nextStepId, raise.nextStepId);
+  assert.equal(publicView.scriptedContinuation, true);
+});
+
+test('v3 Small Blind opening drills branch correctly between limp and raise pots', () => {
+  let scenario = null;
+  for (let seed = 1; seed < 2000; seed++) {
+    const candidate = generateEvScenario({ mode: 'drill', focus: 'opening', seed });
+    if (candidate.heroPosition === 'SB') {
+      scenario = candidate;
+      break;
+    }
+  }
+  assert.ok(scenario, 'expected to find an SB opening scenario');
+  assert.equal(scenario.branching, true);
+  const preflop = scenario.steps[0];
+  const raise = preflop.options.find(option => option.key === 'raise');
+  const limp = preflop.options.find(option => option.key === 'limp');
+  assert.equal(raise.nextStepId, 'flop-raise');
+  assert.equal(limp.nextStepId, 'flop-limp');
+  assert.equal(scenario.steps.find(step => step.id === 'flop-raise').potBb, 6);
+  assert.equal(scenario.steps.find(step => step.id === 'flop-limp').potBb, 2);
+  assert.equal(scenario.steps.find(step => step.id === 'river-raise').terminal, true);
+  assert.equal(scenario.steps.find(step => step.id === 'river-limp').terminal, true);
+});
+
 test('v3 scenario keys reconstruct and reports include EV loss', () => {
   const scenario = generateEvScenario({ mode: 'drill', focus: 'opening', seed: 4242 });
   assert.ok(scenario.key.startsWith('v3|'));
   assert.equal(scenario.strategyVersion, EV_VERSION);
   const again = resolveEvScenario(scenario.key);
   assert.deepEqual(again.heroCards, scenario.heroCards);
+  assert.deepEqual(again.steps.map(step => step.id), scenario.steps.map(step => step.id));
 
   const mix = scenario.steps[0].grading.mix;
   const chosenKey = Object.keys(mix).find(key => mix[key] > 0);
@@ -100,6 +142,7 @@ test('Worker serves v3 meta, rules, scenario, and grading', async () => {
   const scenario = await scenarioResponse.json();
   assert.ok(scenario.key.startsWith('v3|'));
   assert.equal(scenario.strategyVersion, EV_VERSION);
+  assert.ok(scenario.steps.length >= 4);
 
   const resolved = resolveEvScenario(scenario.key);
   const mix = resolved.steps[0].grading.mix;
