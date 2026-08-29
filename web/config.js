@@ -113,12 +113,13 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
     });
   }
 
-  // config.js is loaded after the HTML is parsed but before app.js, so this also
-  // guarantees the API strategy parameter is in place before the app boots.
+  // Run these once during startup. Do not observe the Rulebook DOM: updating those
+  // labels from inside a MutationObserver causes a self-triggering render loop.
   insertStrategyControl();
   updateVersionLabels();
+
+  // Feedback is different: enhanceFeedback is idempotent because it refuses to
+  // add a second .advanced-mix-detail to the same report card.
   const feedback = document.querySelector('#decisionReports');
   if (feedback) new MutationObserver(enhanceFeedback).observe(feedback, { childList: true, subtree: true });
-  const rulebook = document.querySelector('#view-rulebook');
-  if (rulebook) new MutationObserver(updateVersionLabels).observe(rulebook, { childList: true, subtree: true });
 })();
