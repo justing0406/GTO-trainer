@@ -7,8 +7,6 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
   const MIGRATION_KEY = 'gto-trainer-v3-defaulted';
   let strategy = localStorage.getItem(STORAGE_KEY);
 
-  // Make v3 the default once for existing v2 users while preserving the ability
-  // to switch back afterward.
   if (!strategy) strategy = 'v3';
   if (strategy === 'v2' && !localStorage.getItem(MIGRATION_KEY)) {
     strategy = 'v3';
@@ -115,6 +113,9 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
     if (brandSmall) brandSmall.textContent = info.brand;
     document.title = info.title;
 
+    const mantraHeading = document.querySelector('.quick-rule .panel-title h3');
+    if (mantraHeading) mantraHeading.textContent = window.GTO_STRATEGY === 'v1' ? 'V1.0 mantra' : 'Strategy mantra';
+
     const pageHeading = document.querySelector('#view-rulebook .page-heading');
     if (pageHeading) {
       const eyebrow = pageHeading.querySelector('.eyebrow');
@@ -153,6 +154,16 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
   function enhanceFeedback(report) {
     if (!feedbackDomMatches(report)) return false;
     const cards = [...document.querySelectorAll('#decisionReports .report-card')];
+
+    if (report.strategyVersion === '3.0') {
+      const total = Number(report.overallEvLossBb || 0);
+      const average = Number(report.averageEvLossBb || 0);
+      const summary = document.querySelector('#feedbackSummary');
+      if (summary) {
+        summary.textContent = `${total.toFixed(2)} BB total estimated EV loss across ${report.reports.length} decision${report.reports.length === 1 ? '' : 's'} (${average.toFixed(2)} BB average).`;
+      }
+    }
+
     report.reports.forEach((decision, index) => {
       const card = cards[index];
       if (!card) return;
