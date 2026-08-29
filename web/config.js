@@ -4,7 +4,17 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
 
 (() => {
   const STORAGE_KEY = 'gto-trainer-strategy';
-  const strategy = localStorage.getItem(STORAGE_KEY) || 'v2';
+  const MIGRATION_KEY = 'gto-trainer-v3-defaulted';
+  let strategy = localStorage.getItem(STORAGE_KEY);
+
+  // Make v3 the default once for existing v2 users while preserving the ability
+  // to switch back afterward.
+  if (!strategy) strategy = 'v3';
+  if (strategy === 'v2' && !localStorage.getItem(MIGRATION_KEY)) {
+    strategy = 'v3';
+    localStorage.setItem(STORAGE_KEY, 'v3');
+  }
+  localStorage.setItem(MIGRATION_KEY, '1');
   window.GTO_STRATEGY = strategy;
 
   const style = document.createElement('link');
@@ -20,7 +30,7 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
       if (raw) {
         const url = new URL(raw, window.location.origin);
         if (url.origin === window.location.origin && ['/api/meta','/api/rules','/api/scenario'].includes(url.pathname)) {
-          if (!url.searchParams.has('strategy')) url.searchParams.set('strategy', window.GTO_STRATEGY || 'v2');
+          if (!url.searchParams.has('strategy')) url.searchParams.set('strategy', window.GTO_STRATEGY || 'v3');
           requestInput = typeof input === 'string' ? url.toString() : new Request(url.toString(), input);
         }
       }
@@ -52,6 +62,7 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
     wrapper.innerHTML = `
       <label for="strategySelect">Strategy level</label>
       <select id="strategySelect">
+        <option value="v3">EV-Aware v3</option>
         <option value="v2">Advanced / GTO-like v2</option>
         <option value="v1">Foundation v1.0</option>
       </select>`;
@@ -64,37 +75,71 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
     });
   }
 
+  function versionInfo() {
+    if (window.GTO_STRATEGY === 'v3') {
+      return {
+        brand: 'EV-Aware v3.0',
+        title: 'GTO Trainer · EV-Aware v3.0',
+        eyebrow: 'Poker Strategy Rulebook v3.0',
+        heading: 'EV-aware solver-inspired rules',
+        copy: 'v3 grades decisions by estimated EV loss in big blinds. Mixed frequencies remain visible, but frequency alone no longer determines mistake severity.',
+        noticeTitle: 'EV-Aware v3',
+        noticeCopy: 'Mistakes are graded by estimated EV loss. If two actions genuinely mix, both are treated as approximately equal-EV even when their frequencies differ.',
+      };
+    }
+    if (window.GTO_STRATEGY === 'v2') {
+      return {
+        brand: 'Advanced v2.0',
+        title: 'GTO Trainer · Advanced v2.0',
+        eyebrow: 'Poker Strategy Rulebook v2.0',
+        heading: 'Advanced solver-inspired rules',
+        copy: 'Rounded mixed frequencies teach GTO-like reasoning without pretending these are exact solver outputs. Exact equilibrium changes with rake, stack depth and sizing.',
+        noticeTitle: 'Advanced v2',
+        noticeCopy: 'Mixed strategies are normal. A hand may correctly raise 70% and call 30%; feedback shows the approximate mix and explains why.',
+      };
+    }
+    return {
+      brand: 'Foundation v1.0',
+      title: 'GTO Trainer · Foundation v1.0',
+      eyebrow: 'Poker Strategy Rulebook v1.0',
+      heading: 'The rules the trainer grades',
+      copy: 'These are deliberately simple, deterministic rules. Poker jargon is defined in the glossary below.',
+      noticeTitle: '',
+      noticeCopy: '',
+    };
+  }
+
   function updateVersionLabels() {
-    const advanced = (window.GTO_STRATEGY || strategy) === 'v2';
+    const info = versionInfo();
     const brandSmall = document.querySelector('.brand small');
-    if (brandSmall) brandSmall.textContent = advanced ? 'Advanced v2.0' : 'Foundation v1.0';
-    document.title = advanced ? 'GTO Trainer · Advanced v2.0' : 'GTO Trainer · Foundation v1.0';
+    if (brandSmall) brandSmall.textContent = info.brand;
+    document.title = info.title;
 
     const pageHeading = document.querySelector('#view-rulebook .page-heading');
     if (pageHeading) {
       const eyebrow = pageHeading.querySelector('.eyebrow');
       const heading = pageHeading.querySelector('h1');
       const copy = pageHeading.querySelector('p');
-      if (eyebrow) eyebrow.textContent = advanced ? 'Poker Strategy Rulebook v2.0' : 'Poker Strategy Rulebook v1.0';
-      if (heading) heading.textContent = advanced ? 'Advanced solver-inspired rules' : 'The rules the trainer grades';
-      if (copy) copy.textContent = advanced
-        ? 'Rounded mixed frequencies teach GTO-like reasoning without pretending these are exact solver outputs. Exact equilibrium changes with rake, stack depth and sizing.'
-        : 'These are deliberately simple, deterministic rules. Poker jargon is defined in the glossary below.';
+      if (eyebrow) eyebrow.textContent = info.eyebrow;
+      if (heading) heading.textContent = info.heading;
+      if (copy) copy.textContent = info.copy;
     }
 
     let notice = document.querySelector('.advanced-notice');
-    if (advanced && !notice) {
-      notice = document.createElement('div');
-      notice.className = 'advanced-notice card-panel';
-      notice.innerHTML = `<strong>Advanced v2</strong><span>Mixed strategies are normal. A hand may correctly raise 70% and call 30%; feedback shows the approximate mix and explains why.</span>`;
-      document.querySelector('.trainer-toolbar')?.insertAdjacentElement('afterend', notice);
-    } else if (!advanced && notice) {
+    if (window.GTO_STRATEGY !== 'v1') {
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.className = 'advanced-notice card-panel';
+        document.querySelector('.trainer-toolbar')?.insertAdjacentElement('afterend', notice);
+      }
+      notice.innerHTML = `<strong>${escapeHtml(info.noticeTitle)}</strong><span>${escapeHtml(info.noticeCopy)}</span>`;
+    } else if (notice) {
       notice.remove();
     }
   }
 
   function feedbackDomMatches(report) {
-    if (!report?.reports?.length || report.strategyVersion !== '2.0') return false;
+    if (!report?.reports?.length || !['2.0','3.0'].includes(report.strategyVersion)) return false;
     const title = document.querySelector('#feedbackTitle')?.textContent?.trim();
     if (title !== String(report.title || '').trim()) return false;
     const cards = [...document.querySelectorAll('#decisionReports .report-card')];
@@ -116,10 +161,22 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
       const detail = document.createElement('div');
       detail.className = 'advanced-mix-detail';
       const frequency = Math.round((decision.chosenFrequency ?? 0) * 100);
-      detail.innerHTML = `
-        <div><b>Approximate v2 mix</b><span>${escapeHtml(decision.mixText || '')}</span></div>
-        <div><b>Your action frequency</b><span>${frequency}% in this training model</span></div>
-        ${decision.rangeReference ? `<div class="range-reference"><b>Range reference</b><span>${escapeHtml(decision.rangeReference)}</span></div>` : ''}`;
+
+      if (report.strategyVersion === '3.0') {
+        const loss = Number(decision.evLossBb || 0);
+        detail.innerHTML = `
+          <div class="ev-loss-row"><b>Estimated EV loss</b><span><strong>${loss.toFixed(2)} BB</strong> versus the best modeled action</span></div>
+          <div><b>Relative EV</b><span>${Number(decision.relativeEvBb || 0).toFixed(2)} BB</span></div>
+          <div><b>Modeled frequency mix</b><span>${escapeHtml(decision.mixText || '')}</span></div>
+          <div><b>Your action frequency</b><span>${frequency}% in the underlying v2 strategy model</span></div>
+          <div><b>EV source</b><span>Estimated model EV (${escapeHtml(decision.evConfidence || 'heuristic')}); not a solver-exported node EV.</span></div>
+          ${decision.rangeReference ? `<div class="range-reference"><b>Range reference</b><span>${escapeHtml(decision.rangeReference)}</span></div>` : ''}`;
+      } else {
+        detail.innerHTML = `
+          <div><b>Approximate v2 mix</b><span>${escapeHtml(decision.mixText || '')}</span></div>
+          <div><b>Your action frequency</b><span>${frequency}% in this training model</span></div>
+          ${decision.rangeReference ? `<div class="range-reference"><b>Range reference</b><span>${escapeHtml(decision.rangeReference)}</span></div>` : ''}`;
+      }
       body.appendChild(detail);
     });
     return true;
@@ -132,8 +189,6 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
   }
 
   // Run once at startup. There are deliberately no MutationObservers here.
-  // Feedback enhancement is tied to the exact grade response, preventing a prior
-  // hand's mixed-strategy details from being attached to the next hand's review.
   insertStrategyControl();
   updateVersionLabels();
 })();
