@@ -229,9 +229,18 @@ function renderScenarioStep() {
   $('#potChip').textContent = `Pot ${Number(step.potBb).toFixed(step.potBb % 1 ? 1 : 0)} BB`;
   $('#streetBadge').textContent = step.street;
   $('#decisionPrompt').textContent = step.prompt;
-  $('#stepCounter').textContent = `Decision ${state.stepIndex + 1}/${scenario.steps.length}`;
+  $('#stepCounter').textContent = scenario.branching
+    ? `Decision ${state.decisions.length + 1}`
+    : `Decision ${state.stepIndex + 1}/${scenario.steps.length}`;
   $('#historyList').innerHTML = (step.history || []).map(item => `<li>${escapeHtml(item)}</li>`).join('') || '<li>No prior voluntary action.</li>';
-  $('#scriptNote').hidden = !(scenario.mode === 'hand' && scenario.steps.length > 1);
+
+  const scripted = Boolean(scenario.scriptedContinuation || (scenario.mode === 'hand' && scenario.steps.length > 1));
+  $('#scriptNote').hidden = !scripted;
+  if (scripted) {
+    $('#scriptNote').textContent = scenario.scriptedContinuation
+      ? 'After the targeted decision, the opponent follows a scripted continuation so you can practice later streets. Your earlier choice is still graded independently.'
+      : 'Training Hands use a scripted continuation so later streets can still test you even if you deviate earlier.';
+  }
 
   const grid = $('#actionGrid');
   grid.innerHTML = '';
@@ -280,13 +289,25 @@ function chooseAction(option) {
   $$('#actionGrid .action-button').forEach(b => b.disabled = true);
 
   const isFold = option.action === 'fold';
+  const isTerminal = Boolean(option.endScenario || step.terminal);
   const isLast = state.stepIndex >= state.scenario.steps.length - 1;
-  if (isFold || isLast) {
+  if (isFold || isTerminal || isLast) {
     setTimeout(finishHand, 120);
+    return;
+  }
+
+  if (option.nextStepId) {
+    const nextIndex = state.scenario.steps.findIndex(candidate => candidate.id === option.nextStepId);
+    if (nextIndex < 0) {
+      toast('Could not find the next training decision.');
+      setTimeout(finishHand, 120);
+      return;
+    }
+    state.stepIndex = nextIndex;
   } else {
     state.stepIndex += 1;
-    setTimeout(renderScenarioStep, 140);
   }
+  setTimeout(renderScenarioStep, 140);
 }
 
 async function finishHand() {
