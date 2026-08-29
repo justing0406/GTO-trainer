@@ -21,7 +21,7 @@
         <button class="nav-tab" data-nav="rulebook">Rulebook</button>
         <button class="nav-tab" data-nav="settings">Settings</button>
       </nav>
-      <div class="connection-pill" id="connectionPill"><span></span><b>Worker</b><em>Not checked</em></div>
+      <div class="connection-pill" id="connectionPill"><span></span><b>Trainer</b><em>Starting…</em></div>
     </header>
 
     <main>
@@ -48,8 +48,8 @@
             <div class="scenario-heading">
               <div>
                 <span class="eyebrow" id="scenarioCategory">Training Hand</span>
-                <h1 id="scenarioTitle">Connect the Worker to begin</h1>
-                <p id="scenarioConcept">The Worker purposely deals scenarios chosen to test the Version 1.0 rules.</p>
+                <h1 id="scenarioTitle">Dealing your first hand…</h1>
+                <p id="scenarioConcept">The trainer purposely deals scenarios chosen to test the Version 1.0 rules.</p>
               </div>
               <div class="difficulty" id="difficultyBadge">V1.0</div>
             </div>
@@ -83,7 +83,7 @@
             <div class="decision-area" id="decisionArea">
               <div class="decision-copy">
                 <span class="street-badge" id="streetBadge">Ready</span>
-                <h2 id="decisionPrompt">Set your Worker URL in Settings, then start training.</h2>
+                <h2 id="decisionPrompt">Loading the trainer…</h2>
                 <p class="script-note" id="scriptNote" hidden>Training Hands use a scripted continuation so later streets can still test you even if you deviate earlier.</p>
               </div>
               <div class="action-grid" id="actionGrid"></div>
@@ -93,7 +93,7 @@
           <aside class="side-stack">
             <section class="card-panel side-card">
               <div class="panel-title"><h3>Action history</h3><span id="stepCounter">—</span></div>
-              <ol class="history-list" id="historyList"><li>Connect the Worker to begin.</li></ol>
+              <ol class="history-list" id="historyList"><li>Your first scenario will appear automatically.</li></ol>
             </section>
 
             <section class="card-panel side-card quick-rule">
@@ -121,7 +121,7 @@
       </section>
 
       <section class="view" id="view-progress">
-        <div class="page-heading"><span class="eyebrow">Local training history</span><h1>Your progress</h1><p>Scores are stored in this browser. The Worker never needs your personal data.</p></div>
+        <div class="page-heading"><span class="eyebrow">Local training history</span><h1>Your progress</h1><p>Scores are stored in this browser. The trainer does not need an account for v1.0.</p></div>
         <div class="metric-grid" id="metricGrid"></div>
         <div class="progress-layout">
           <section class="card-panel"><div class="panel-title"><h2>By category</h2><span>Weighted decision score</span></div><div id="categoryProgress"></div></section>
@@ -148,15 +148,18 @@
       </section>
 
       <section class="view" id="view-settings">
-        <div class="page-heading"><span class="eyebrow">Cloudflare setup</span><h1>Settings</h1><p>Pages hosts this interface. A separate Cloudflare Worker serves the rules, scenarios, and grading API.</p></div>
+        <div class="page-heading"><span class="eyebrow">Trainer settings</span><h1>Settings</h1><p>The interface and poker engine are served together by the same Cloudflare Worker. There is no connection setup to perform.</p></div>
         <div class="settings-grid">
           <section class="card-panel settings-card">
-            <h2>Worker API</h2>
-            <p>Paste the deployed Worker origin, without a trailing slash.</p>
-            <label for="apiUrlInput">Worker URL</label>
-            <input id="apiUrlInput" type="url" placeholder="https://gto-trainer-api.example.workers.dev" />
-            <div class="button-row"><button class="button primary" id="saveApiBtn">Save & test</button><button class="button secondary" id="testApiBtn">Test connection</button></div>
-            <div class="settings-status" id="apiStatus">No Worker checked yet.</div>
+            <h2>App connection</h2>
+            <p>The trainer automatically uses this site's own <code>/api/*</code> routes. Just open the site and play.</p>
+            <div class="settings-status" id="apiStatus">Checking trainer…</div>
+            <div hidden>
+              <label for="apiUrlInput">API URL</label>
+              <input id="apiUrlInput" type="url" />
+              <button id="saveApiBtn">Save</button>
+              <button id="testApiBtn">Test</button>
+            </div>
           </section>
           <section class="card-panel settings-card">
             <h2>Training data</h2>
@@ -164,10 +167,8 @@
             <button class="button danger" id="resetProgressBtn">Reset all progress</button>
           </section>
           <section class="card-panel settings-card deployment-card">
-            <h2>Deployment shape</h2>
-            <div class="deploy-node"><strong>Cloudflare Pages</strong><span>/web static frontend</span></div>
-            <div class="deploy-arrow">↓ HTTPS API</div>
-            <div class="deploy-node"><strong>Cloudflare Worker</strong><span>/worker rule + scenario engine</span></div>
+            <h2>Deployment</h2>
+            <div class="deploy-node"><strong>Cloudflare Worker · gto-trainer</strong><span>Static poker UI + /api/* strategy engine</span></div>
           </section>
         </div>
       </section>
