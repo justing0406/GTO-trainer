@@ -41,9 +41,9 @@ export default {
 
     if (!url.pathname.startsWith('/api/')) {
       return json({
-        name: 'GTO Trainer API',
+        name: 'GTO Trainer',
         version: RULEBOOK_VERSION,
-        message: 'Use /api/health, /api/meta, /api/rules, /api/scenario, or /api/grade.',
+        message: 'The trainer UI is served as Worker static assets. API routes live under /api/.',
       }, 200, request, env);
     }
 
@@ -51,7 +51,7 @@ export default {
       if (request.method === 'GET' && url.pathname === '/api/health') {
         return json({
           ok: true,
-          service: 'gto-trainer-api',
+          service: 'gto-trainer',
           rulebookVersion: RULEBOOK_VERSION,
           scriptedHands: listScriptedHands().length,
           time: new Date().toISOString(),
