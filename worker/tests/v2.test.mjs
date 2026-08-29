@@ -30,6 +30,17 @@ test('advanced opening uses position-specific sizing and mixes', () => {
   assert.ok(sb87.mix.limp > 0);
 });
 
+test('KJo is a UTG fold but a mixed HJ open in v2', () => {
+  const utgKJo = advancedOpeningDecision('UTG', 'KJo');
+  assert.deepEqual(utgKJo.mix, { fold: 1 });
+  assert.match(utgKJo.rangeReference, /^UTG open 2 BB\./);
+
+  const hjKJo = advancedOpeningDecision('HJ', 'KJo');
+  assert.ok(Math.abs(hjKJo.mix.raise - 0.7) < 1e-12);
+  assert.ok(Math.abs(hjKJo.mix.fold - 0.3) < 1e-12);
+  assert.match(hjKJo.rangeReference, /^HJ open 2 BB\./);
+});
+
 test('advanced preflop respects positional morphology', () => {
   const sbVsBtn = advancedPreflopResponse('sb-vs-btn', 'A5s');
   assert.ok(sbVsBtn.mix.threeBet > 0);
