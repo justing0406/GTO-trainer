@@ -1,6 +1,16 @@
 import { RULEBOOK_VERSION, RULEBOOK_SECTIONS, GLOSSARY, OPENING_RANGE_SPECS, BIG_BLIND_DEFENSE_SPECS } from './rules.js';
 import { CATEGORY_META, generateScenario, gradeScenario, listScriptedHands, publicScenario, resolveScenario } from './scenarios.js';
 import { enrichGradeReport } from './range-feedback.js';
+import { ADVANCED_VERSION } from './rules-v2.js';
+import {
+  ADVANCED_CATEGORY_META,
+  advancedRulebookPayload,
+  generateAdvancedScenario,
+  gradeAdvancedScenario,
+  listAdvancedHands,
+  publicAdvancedScenario,
+  resolveAdvancedScenario,
+} from './scenarios-v2.js';
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -32,6 +42,29 @@ async function parseJson(request) {
   return request.json();
 }
 
+function wantsAdvanced(url) {
+  return ['v2', 'advanced', '2', '2.0'].includes(String(url.searchParams.get('strategy') || '').toLowerCase());
+}
+
+function v1RulesPayload() {
+  return {
+    version: RULEBOOK_VERSION,
+    label: 'Foundation v1.0',
+    sections: RULEBOOK_SECTIONS,
+    glossary: GLOSSARY.map(([term, definition]) => ({ term, definition })),
+    ranges: {
+      opening: OPENING_RANGE_SPECS,
+      bigBlindDefense: BIG_BLIND_DEFENSE_SPECS,
+    },
+    grading: [
+      { label: 'Perfect', meaning: 'Preferred Version 1.0 action and appropriate size.' },
+      { label: 'Correct', meaning: 'Strategically acceptable alternative.' },
+      { label: 'Minor Mistake', meaning: 'Defensible but clearly inferior or poorly sized.' },
+      { label: 'Major Mistake', meaning: 'Violates an important Version 1.0 rule.' },
+    ],
+  };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -41,15 +74,11 @@ export default {
     }
 
     if (!url.pathname.startsWith('/api/')) {
-      if (env?.ASSETS?.fetch) {
-        return env.ASSETS.fetch(request);
-      }
-
-      // Useful fallback for direct unit tests where the Cloudflare ASSETS binding
-      // does not exist. Production requests are always served by ASSETS here.
+      if (env?.ASSETS?.fetch) return env.ASSETS.fetch(request);
       return json({
         name: 'GTO Trainer',
         version: RULEBOOK_VERSION,
+        advancedVersion: ADVANCED_VERSION,
         message: 'Static asset binding is unavailable in this environment.',
       }, 200, request, env);
     }
@@ -60,14 +89,36 @@ export default {
           ok: true,
           service: 'gto-trainer',
           rulebookVersion: RULEBOOK_VERSION,
+          advancedVersion: ADVANCED_VERSION,
+          strategies: [
+            { id: 'v1', label: 'Foundation v1.0' },
+            { id: 'v2', label: 'Advanced / GTO-like v2.0' },
+          ],
           scriptedHands: listScriptedHands().length,
+          advancedHands: listAdvancedHands().length,
           time: new Date().toISOString(),
         }, 200, request, env);
       }
 
       if (request.method === 'GET' && url.pathname === '/api/meta') {
+        if (wantsAdvanced(url)) {
+          return json({
+            rulebookVersion: ADVANCED_VERSION,
+            strategy: 'v2',
+            strategyLabel: 'Advanced / GTO-like v2.0',
+            modes: [
+              { id: 'hand', label: 'Training Hands', description: 'Multi-street advanced hands with mixed-frequency feedback.' },
+              { id: 'drill', label: 'Decision Drills', description: 'Advanced preflop, range, sizing, blocker, and poker-math drills.' },
+            ],
+            categories: ADVANCED_CATEGORY_META,
+            scriptedHands: listAdvancedHands(),
+          }, 200, request, env, { 'Cache-Control': 'public, max-age=300' });
+        }
+
         return json({
           rulebookVersion: RULEBOOK_VERSION,
+          strategy: 'v1',
+          strategyLabel: 'Foundation v1.0',
           modes: [
             { id: 'hand', label: 'Training Hands', description: 'Scripted multi-street hands with feedback after the hand.' },
             { id: 'drill', label: 'Decision Drills', description: 'Rapid single-decision drills generated from the Version 1.0 rules.' },
@@ -78,40 +129,35 @@ export default {
       }
 
       if (request.method === 'GET' && url.pathname === '/api/rules') {
-        return json({
-          version: RULEBOOK_VERSION,
-          sections: RULEBOOK_SECTIONS,
-          glossary: GLOSSARY.map(([term, definition]) => ({ term, definition })),
-          ranges: {
-            opening: OPENING_RANGE_SPECS,
-            bigBlindDefense: BIG_BLIND_DEFENSE_SPECS,
-          },
-          grading: [
-            { label: 'Perfect', meaning: 'Preferred Version 1.0 action and appropriate size.' },
-            { label: 'Correct', meaning: 'Strategically acceptable alternative.' },
-            { label: 'Minor Mistake', meaning: 'Defensible but clearly inferior or poorly sized.' },
-            { label: 'Major Mistake', meaning: 'Violates an important Version 1.0 rule.' },
-          ],
-        }, 200, request, env, { 'Cache-Control': 'public, max-age=300' });
+        return json(wantsAdvanced(url) ? advancedRulebookPayload() : v1RulesPayload(), 200, request, env, { 'Cache-Control': 'public, max-age=300' });
       }
 
       if (request.method === 'GET' && url.pathname === '/api/scenario') {
         const mode = url.searchParams.get('mode') || 'drill';
         const focus = url.searchParams.get('focus') || 'all';
         const seed = url.searchParams.get('seed') || Date.now();
+        if (wantsAdvanced(url)) {
+          const scenario = generateAdvancedScenario({ mode, focus, seed });
+          return json(publicAdvancedScenario(scenario), 200, request, env);
+        }
         const scenario = generateScenario({ mode, focus, seed });
         return json(publicScenario(scenario), 200, request, env);
       }
 
       if (request.method === 'POST' && url.pathname === '/api/grade') {
         const body = await parseJson(request);
-        const scenario = resolveScenario(body.scenarioKey);
-        if (!scenario) return json({ error: 'Unknown scenarioKey' }, 404, request, env);
         if (!Array.isArray(body.decisions)) return json({ error: 'decisions must be an array' }, 400, request, env);
+
+        const advanced = String(body.scenarioKey || '').startsWith('v2|');
+        const scenario = advanced ? resolveAdvancedScenario(body.scenarioKey) : resolveScenario(body.scenarioKey);
+        if (!scenario) return json({ error: 'Unknown scenarioKey' }, 404, request, env);
+
         const validStepIds = new Set(scenario.steps.map(step => step.id));
         const decisions = body.decisions
           .filter(d => validStepIds.has(d.stepId) && typeof d.optionKey === 'string')
           .map(d => ({ stepId: d.stepId, optionKey: d.optionKey }));
+
+        if (advanced) return json(gradeAdvancedScenario(scenario, decisions), 200, request, env);
         const report = gradeScenario(scenario, decisions);
         return json(enrichGradeReport(report, scenario), 200, request, env);
       }
