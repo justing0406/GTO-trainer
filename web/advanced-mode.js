@@ -58,10 +58,14 @@
     });
   }
 
+  function setTextIfChanged(element, text) {
+    if (element && element.textContent !== text) element.textContent = text;
+  }
+
   function updateVersionLabels() {
     const advanced = (window.GTO_STRATEGY || strategy) === 'v2';
     const brandSmall = document.querySelector('.brand small');
-    if (brandSmall) brandSmall.textContent = advanced ? 'Advanced v2.0' : 'Foundation v1.0';
+    setTextIfChanged(brandSmall, advanced ? 'Advanced v2.0' : 'Foundation v1.0');
     document.title = advanced ? 'GTO Trainer · Advanced v2.0' : 'GTO Trainer · Foundation v1.0';
 
     const pageHeading = document.querySelector('#view-rulebook .page-heading');
@@ -69,11 +73,11 @@
       const eyebrow = pageHeading.querySelector('.eyebrow');
       const heading = pageHeading.querySelector('h1');
       const copy = pageHeading.querySelector('p');
-      if (eyebrow) eyebrow.textContent = advanced ? 'Poker Strategy Rulebook v2.0' : 'Poker Strategy Rulebook v1.0';
-      if (heading) heading.textContent = advanced ? 'Advanced solver-inspired rules' : 'The rules the trainer grades';
-      if (copy) copy.textContent = advanced
+      setTextIfChanged(eyebrow, advanced ? 'Poker Strategy Rulebook v2.0' : 'Poker Strategy Rulebook v1.0');
+      setTextIfChanged(heading, advanced ? 'Advanced solver-inspired rules' : 'The rules the trainer grades');
+      setTextIfChanged(copy, advanced
         ? 'Rounded mixed frequencies teach GTO-like reasoning without pretending these are exact solver outputs. Exact equilibrium changes with rake, stack depth and sizing.'
-        : 'These are deliberately simple, deterministic rules. Poker jargon is defined in the glossary below.';
+        : 'These are deliberately simple, deterministic rules. Poker jargon is defined in the glossary below.');
     }
 
     let notice = document.querySelector('.advanced-notice');
@@ -110,8 +114,9 @@
   insertStrategyControl();
   updateVersionLabels();
 
+  // Only feedback needs a MutationObserver. The rulebook heading is static and is
+  // updated once above. Observing it while also rewriting its text caused a
+  // self-triggering MutationObserver loop that could freeze the page.
   const feedback = document.querySelector('#decisionReports');
   if (feedback) new MutationObserver(enhanceFeedback).observe(feedback, { childList: true, subtree: true });
-  const rulebook = document.querySelector('#view-rulebook');
-  if (rulebook) new MutationObserver(updateVersionLabels).observe(rulebook, { childList: true, subtree: true });
 })();
