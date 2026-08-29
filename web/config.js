@@ -1,5 +1,6 @@
+// GTO Trainer v1.0 runs as one Cloudflare Worker: static UI + /api/*.
+// Clear the old two-project URL setting so legacy localStorage can never override same-origin routing.
+localStorage.removeItem('gto-trainer-api-base');
 window.GTO_CONFIG = {
-  // The UI and API are deployed together on the same Cloudflare Worker.
-  // No URL setup is required: the trainer always talks to the site you opened.
   apiBaseUrl: window.location.origin
 };
