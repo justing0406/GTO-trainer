@@ -70,3 +70,23 @@ test('worker health and scenario endpoints respond', async () => {
   assert.ok(scenario.key.startsWith('drill|opening|'));
   assert.equal('grading' in scenario.steps[0], false);
 });
+
+test('non-api requests delegate to the Cloudflare ASSETS binding', async () => {
+  let seenUrl = '';
+  const env = {
+    ASSETS: {
+      async fetch(request) {
+        seenUrl = request.url;
+        return new Response('<html>trainer</html>', {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        });
+      },
+    },
+  };
+
+  const response = await worker.fetch(new Request('https://example.com/'), env);
+  assert.equal(response.status, 200);
+  assert.equal(seenUrl, 'https://example.com/');
+  assert.equal(await response.text(), '<html>trainer</html>');
+});
