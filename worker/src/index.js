@@ -35,15 +35,21 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (request.method === 'OPTIONS') {
+    if (url.pathname.startsWith('/api/') && request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     }
 
     if (!url.pathname.startsWith('/api/')) {
+      if (env?.ASSETS?.fetch) {
+        return env.ASSETS.fetch(request);
+      }
+
+      // Useful fallback for direct unit tests where the Cloudflare ASSETS binding
+      // does not exist. Production requests are always served by ASSETS here.
       return json({
         name: 'GTO Trainer',
         version: RULEBOOK_VERSION,
-        message: 'The trainer UI is served as Worker static assets. API routes live under /api/.',
+        message: 'Static asset binding is unavailable in this environment.',
       }, 200, request, env);
     }
 
