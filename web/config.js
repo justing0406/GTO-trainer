@@ -33,8 +33,7 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
       if (url?.pathname === '/api/grade') {
         response.clone().json().then(report => {
           window.__GTO_LAST_REPORT = report;
-          queueMicrotask(enhanceFeedback);
-          setTimeout(enhanceFeedback, 30);
+          scheduleFeedbackEnhancement(report);
         }).catch(() => {});
       }
     } catch {}
@@ -94,32 +93,47 @@ window.GTO_CONFIG = { apiBaseUrl: window.location.origin };
     }
   }
 
-  function enhanceFeedback() {
-    const report = window.__GTO_LAST_REPORT;
-    if (!report?.reports?.length || report.strategyVersion !== '2.0') return;
+  function feedbackDomMatches(report) {
+    if (!report?.reports?.length || report.strategyVersion !== '2.0') return false;
+    const title = document.querySelector('#feedbackTitle')?.textContent?.trim();
+    if (title !== String(report.title || '').trim()) return false;
+    const cards = [...document.querySelectorAll('#decisionReports .report-card')];
+    if (cards.length < report.reports.length) return false;
+    return report.reports.every((decision, index) => {
+      const text = cards[index]?.textContent || '';
+      return text.includes(`You: ${decision.chosenLabel}`);
+    });
+  }
+
+  function enhanceFeedback(report) {
+    if (!feedbackDomMatches(report)) return false;
     const cards = [...document.querySelectorAll('#decisionReports .report-card')];
     report.reports.forEach((decision, index) => {
       const card = cards[index];
-      if (!card || card.querySelector('.advanced-mix-detail')) return;
+      if (!card) return;
+      card.querySelector('.advanced-mix-detail')?.remove();
       const body = card.children[1] || card;
       const detail = document.createElement('div');
       detail.className = 'advanced-mix-detail';
-      const frequency = Math.round((decision.chosenFrequency || 0) * 100);
+      const frequency = Math.round((decision.chosenFrequency ?? 0) * 100);
       detail.innerHTML = `
         <div><b>Approximate v2 mix</b><span>${escapeHtml(decision.mixText || '')}</span></div>
         <div><b>Your action frequency</b><span>${frequency}% in this training model</span></div>
         ${decision.rangeReference ? `<div class="range-reference"><b>Range reference</b><span>${escapeHtml(decision.rangeReference)}</span></div>` : ''}`;
       body.appendChild(detail);
     });
+    return true;
   }
 
-  // Run these once during startup. Do not observe the Rulebook DOM: updating those
-  // labels from inside a MutationObserver causes a self-triggering render loop.
+  function scheduleFeedbackEnhancement(report, attempt = 0) {
+    if (enhanceFeedback(report)) return;
+    if (attempt >= 12) return;
+    setTimeout(() => scheduleFeedbackEnhancement(report, attempt + 1), 25 + attempt * 10);
+  }
+
+  // Run once at startup. There are deliberately no MutationObservers here.
+  // Feedback enhancement is tied to the exact grade response, preventing a prior
+  // hand's mixed-strategy details from being attached to the next hand's review.
   insertStrategyControl();
   updateVersionLabels();
-
-  // Feedback is different: enhanceFeedback is idempotent because it refuses to
-  // add a second .advanced-mix-detail to the same report card.
-  const feedback = document.querySelector('#decisionReports');
-  if (feedback) new MutationObserver(enhanceFeedback).observe(feedback, { childList: true, subtree: true });
 })();
