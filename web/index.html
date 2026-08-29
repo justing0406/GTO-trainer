@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0c1714" />
+  <meta name="description" content="A deterministic poker strategy trainer based on Poker Strategy Rulebook v1.0." />
+  <title>GTO Trainer · Rulebook v1.0</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="brand" data-nav="train" aria-label="Go to trainer">
+        <span class="brand-mark">GT</span>
+        <span><strong>GTO Trainer</strong><small>Rulebook v1.0</small></span>
+      </button>
+      <nav class="nav-tabs" aria-label="Main navigation">
+        <button class="nav-tab active" data-nav="train">Train</button>
+        <button class="nav-tab" data-nav="progress">Progress</button>
+        <button class="nav-tab" data-nav="rulebook">Rulebook</button>
+        <button class="nav-tab" data-nav="settings">Settings</button>
+      </nav>
+      <div class="connection-pill" id="connectionPill"><span></span><b>Worker</b><em>Not checked</em></div>
+    </header>
+
+    <main>
+      <section class="view active" id="view-train">
+        <div class="trainer-toolbar card-panel">
+          <div>
+            <label for="modeSelect">Training mode</label>
+            <select id="modeSelect">
+              <option value="hand">Training Hands</option>
+              <option value="drill">Decision Drills</option>
+            </select>
+          </div>
+          <div>
+            <label for="focusSelect">Focus</label>
+            <select id="focusSelect"><option value="all">All areas</option></select>
+          </div>
+          <div class="toolbar-stat"><span>Current streak</span><strong id="streakStat">0</strong></div>
+          <div class="toolbar-stat"><span>Decision score</span><strong id="scoreStat">—</strong></div>
+          <button class="button secondary" id="newScenarioBtn">New hand</button>
+        </div>
+
+        <div class="trainer-layout">
+          <section class="poker-stage card-panel" aria-label="Poker table">
+            <div class="scenario-heading">
+              <div>
+                <span class="eyebrow" id="scenarioCategory">Training Hand</span>
+                <h1 id="scenarioTitle">Connect the Worker to begin</h1>
+                <p id="scenarioConcept">The Worker purposely deals scenarios chosen to test the Version 1.0 rules.</p>
+              </div>
+              <div class="difficulty" id="difficultyBadge">V1.0</div>
+            </div>
+
+            <div class="table-wrap">
+              <div class="poker-table">
+                <div class="felt-mark">GTO <span>TRAINER</span></div>
+                <div class="seat seat-0"><div class="seat-chip">UTG</div></div>
+                <div class="seat seat-1"><div class="seat-chip">HJ</div></div>
+                <div class="seat seat-2"><div class="seat-chip">CO</div></div>
+                <div class="seat seat-3"><div class="seat-chip">BTN</div></div>
+                <div class="seat seat-4"><div class="seat-chip">SB</div></div>
+                <div class="seat seat-5"><div class="seat-chip">BB</div></div>
+
+                <div class="opponent-cards" id="opponentCards" aria-label="Opponent cards">
+                  <div class="playing-card card-back"></div><div class="playing-card card-back"></div>
+                </div>
+
+                <div class="board-zone">
+                  <div class="pot-chip" id="potChip">Pot —</div>
+                  <div class="board-cards" id="boardCards"></div>
+                </div>
+
+                <div class="hero-zone">
+                  <div class="position-badge" id="heroPosition">HERO</div>
+                  <div class="hero-cards" id="heroCards"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="decision-area" id="decisionArea">
+              <div class="decision-copy">
+                <span class="street-badge" id="streetBadge">Ready</span>
+                <h2 id="decisionPrompt">Set your Worker URL in Settings, then start training.</h2>
+                <p class="script-note" id="scriptNote" hidden>Training Hands use a scripted continuation so later streets can still test you even if you deviate earlier.</p>
+              </div>
+              <div class="action-grid" id="actionGrid"></div>
+            </div>
+          </section>
+
+          <aside class="side-stack">
+            <section class="card-panel side-card">
+              <div class="panel-title"><h3>Action history</h3><span id="stepCounter">—</span></div>
+              <ol class="history-list" id="historyList"><li>Connect the Worker to begin.</li></ol>
+            </section>
+
+            <section class="card-panel side-card quick-rule">
+              <div class="panel-title"><h3>V1.0 mantra</h3></div>
+              <blockquote id="mantraText">Judge the decision, not whether the hand happened to win.</blockquote>
+              <button class="text-button" data-nav="rulebook">Open full rulebook →</button>
+            </section>
+          </aside>
+        </div>
+
+        <section class="feedback card-panel" id="feedbackPanel" hidden>
+          <div class="feedback-hero">
+            <div class="grade-orb" id="overallGrade">—</div>
+            <div>
+              <span class="eyebrow">Hand review</span>
+              <h2 id="feedbackTitle">Review</h2>
+              <p id="feedbackSummary"></p>
+            </div>
+            <button class="button primary" id="nextHandBtn">Next hand</button>
+          </div>
+          <div id="firstMistakeCallout"></div>
+          <div class="decision-reports" id="decisionReports"></div>
+          <div class="reveal-row" id="revealRow"></div>
+        </section>
+      </section>
+
+      <section class="view" id="view-progress">
+        <div class="page-heading"><span class="eyebrow">Local training history</span><h1>Your progress</h1><p>Scores are stored in this browser. The Worker never needs your personal data.</p></div>
+        <div class="metric-grid" id="metricGrid"></div>
+        <div class="progress-layout">
+          <section class="card-panel"><div class="panel-title"><h2>By category</h2><span>Weighted decision score</span></div><div id="categoryProgress"></div></section>
+          <section class="card-panel"><div class="panel-title"><h2>Recent mistakes</h2><button class="text-button" id="clearMistakesBtn">Clear</button></div><div id="mistakesList" class="mistakes-list"></div></section>
+        </div>
+      </section>
+
+      <section class="view" id="view-rulebook">
+        <div class="page-heading"><span class="eyebrow">Poker Strategy Rulebook v1.0</span><h1>The rules the trainer grades</h1><p>These are deliberately simple, deterministic rules. Poker jargon is defined in the glossary below.</p></div>
+        <div class="rulebook-layout">
+          <aside class="card-panel rule-index" id="ruleIndex"></aside>
+          <div>
+            <section class="card-panel ranges-card">
+              <div class="panel-title"><h2>Opening ranges</h2><span>Raise to 3 BB; otherwise fold</span></div>
+              <div class="range-grid" id="rangeGrid"></div>
+            </section>
+            <div id="ruleSections" class="rule-sections"></div>
+            <section class="card-panel glossary-card" id="glossarySection">
+              <div class="panel-title"><h2>Glossary</h2><input id="glossarySearch" type="search" placeholder="Search poker terms…" /></div>
+              <div class="glossary-grid" id="glossaryGrid"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-settings">
+        <div class="page-heading"><span class="eyebrow">Cloudflare setup</span><h1>Settings</h1><p>Pages hosts this interface. A separate Cloudflare Worker serves the rules, scenarios, and grading API.</p></div>
+        <div class="settings-grid">
+          <section class="card-panel settings-card">
+            <h2>Worker API</h2>
+            <p>Paste the deployed Worker origin, without a trailing slash.</p>
+            <label for="apiUrlInput">Worker URL</label>
+            <input id="apiUrlInput" type="url" placeholder="https://gto-trainer-api.example.workers.dev" />
+            <div class="button-row"><button class="button primary" id="saveApiBtn">Save & test</button><button class="button secondary" id="testApiBtn">Test connection</button></div>
+            <div class="settings-status" id="apiStatus">No Worker checked yet.</div>
+          </section>
+          <section class="card-panel settings-card">
+            <h2>Training data</h2>
+            <p>Your progress is stored only in this browser using localStorage.</p>
+            <button class="button danger" id="resetProgressBtn">Reset all progress</button>
+          </section>
+          <section class="card-panel settings-card deployment-card">
+            <h2>Deployment shape</h2>
+            <div class="deploy-node"><strong>Cloudflare Pages</strong><span>/web static frontend</span></div>
+            <div class="deploy-arrow">↓ HTTPS API</div>
+            <div class="deploy-node"><strong>Cloudflare Worker</strong><span>/worker rule + scenario engine</span></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="./config.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
