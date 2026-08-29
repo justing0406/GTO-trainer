@@ -8,9 +8,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: worker
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,7 +15,11 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm test
-      - run: npm run check:deploy
+      - name: Check deploy from repository root
+        run: npm run check:deploy
+      - name: Check deploy from worker root
+        run: npx wrangler deploy --dry-run --config worker/wrangler.jsonc
+      - name: Check deploy from web root
+        run: npx wrangler deploy --dry-run --config web/wrangler.jsonc
       - name: Check browser JavaScript syntax
-        working-directory: .
         run: node --check web/config.js && node --check web/app.js
