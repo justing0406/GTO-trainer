@@ -1,12 +1,13 @@
 {
-  "name": "gto-trainer-worker",
+  "name": "gto-trainer",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "node --test"
+    "test": "node --test",
+    "check:deploy": "wrangler deploy --dry-run"
   },
   "devDependencies": {
     "wrangler": "^4.68.0"
