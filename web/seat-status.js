@@ -39,7 +39,15 @@
 
   function positionsIn(text) {
     const source = String(text).toUpperCase();
-    return POSITIONS.filter(position => new RegExp(`\\b${position}\\b`).test(source));
+
+    // "BB" has two meanings in poker UI text: the Big Blind seat and the
+    // unit "big blinds" used for bet sizes. Strip numeric BB amounts before
+    // looking for position abbreviations so a line such as
+    // "UTG calls 1 BB (limps)" cannot accidentally mark the BB player as a
+    // limper. A genuine seat reference such as "BB calls 2 BB" remains.
+    const positionText = source.replace(/\b\d+(?:\.\d+)?\s*BB\b/g, '');
+
+    return POSITIONS.filter(position => new RegExp(`\\b${position}\\b`).test(positionText));
   }
 
   function currentHero() {
