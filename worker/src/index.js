@@ -11,6 +11,15 @@ import {
   publicAdvancedScenario,
   resolveAdvancedScenario,
 } from './scenarios-v2.js';
+import { EV_VERSION, evRulebookPayload } from './rules-v3.js';
+import {
+  EV_CATEGORY_META,
+  generateEvScenario,
+  gradeEvScenario,
+  listEvHands,
+  publicEvScenario,
+  resolveEvScenario,
+} from './scenarios-v3.js';
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -42,8 +51,11 @@ async function parseJson(request) {
   return request.json();
 }
 
-function wantsAdvanced(url) {
-  return ['v2', 'advanced', '2', '2.0'].includes(String(url.searchParams.get('strategy') || '').toLowerCase());
+function strategyId(url) {
+  const raw = String(url.searchParams.get('strategy') || '').toLowerCase();
+  if (['v3','ev','3','3.0'].includes(raw)) return 'v3';
+  if (['v2','advanced','2','2.0'].includes(raw)) return 'v2';
+  return 'v1';
 }
 
 function v1RulesPayload() {
@@ -79,6 +91,7 @@ export default {
         name: 'GTO Trainer',
         version: RULEBOOK_VERSION,
         advancedVersion: ADVANCED_VERSION,
+        evVersion: EV_VERSION,
         message: 'Static asset binding is unavailable in this environment.',
       }, 200, request, env);
     }
@@ -90,18 +103,36 @@ export default {
           service: 'gto-trainer',
           rulebookVersion: RULEBOOK_VERSION,
           advancedVersion: ADVANCED_VERSION,
+          evVersion: EV_VERSION,
           strategies: [
-            { id: 'v1', label: 'Foundation v1.0' },
+            { id: 'v3', label: 'EV-Aware v3.0' },
             { id: 'v2', label: 'Advanced / GTO-like v2.0' },
+            { id: 'v1', label: 'Foundation v1.0' },
           ],
           scriptedHands: listScriptedHands().length,
           advancedHands: listAdvancedHands().length,
+          evHands: listEvHands().length,
           time: new Date().toISOString(),
         }, 200, request, env);
       }
 
       if (request.method === 'GET' && url.pathname === '/api/meta') {
-        if (wantsAdvanced(url)) {
+        const strategy = strategyId(url);
+        if (strategy === 'v3') {
+          return json({
+            rulebookVersion: EV_VERSION,
+            strategy: 'v3',
+            strategyLabel: 'EV-Aware v3.0',
+            modes: [
+              { id: 'hand', label: 'Training Hands', description: 'Advanced hands graded by estimated EV loss in big blinds.' },
+              { id: 'drill', label: 'Decision Drills', description: 'Advanced preflop, postflop, blocker, sizing, and poker-math drills with EV-loss feedback.' },
+            ],
+            categories: EV_CATEGORY_META,
+            scriptedHands: listEvHands(),
+          }, 200, request, env, { 'Cache-Control': 'public, max-age=300' });
+        }
+
+        if (strategy === 'v2') {
           return json({
             rulebookVersion: ADVANCED_VERSION,
             strategy: 'v2',
@@ -129,14 +160,22 @@ export default {
       }
 
       if (request.method === 'GET' && url.pathname === '/api/rules') {
-        return json(wantsAdvanced(url) ? advancedRulebookPayload() : v1RulesPayload(), 200, request, env, { 'Cache-Control': 'public, max-age=300' });
+        const strategy = strategyId(url);
+        const payload = strategy === 'v3' ? evRulebookPayload() : strategy === 'v2' ? advancedRulebookPayload() : v1RulesPayload();
+        return json(payload, 200, request, env, { 'Cache-Control': 'public, max-age=300' });
       }
 
       if (request.method === 'GET' && url.pathname === '/api/scenario') {
         const mode = url.searchParams.get('mode') || 'drill';
         const focus = url.searchParams.get('focus') || 'all';
         const seed = url.searchParams.get('seed') || Date.now();
-        if (wantsAdvanced(url)) {
+        const strategy = strategyId(url);
+
+        if (strategy === 'v3') {
+          const scenario = generateEvScenario({ mode, focus, seed });
+          return json(publicEvScenario(scenario), 200, request, env);
+        }
+        if (strategy === 'v2') {
           const scenario = generateAdvancedScenario({ mode, focus, seed });
           return json(publicAdvancedScenario(scenario), 200, request, env);
         }
@@ -148,8 +187,10 @@ export default {
         const body = await parseJson(request);
         if (!Array.isArray(body.decisions)) return json({ error: 'decisions must be an array' }, 400, request, env);
 
-        const advanced = String(body.scenarioKey || '').startsWith('v2|');
-        const scenario = advanced ? resolveAdvancedScenario(body.scenarioKey) : resolveScenario(body.scenarioKey);
+        const key = String(body.scenarioKey || '');
+        const evAware = key.startsWith('v3|');
+        const advanced = key.startsWith('v2|');
+        const scenario = evAware ? resolveEvScenario(key) : advanced ? resolveAdvancedScenario(key) : resolveScenario(key);
         if (!scenario) return json({ error: 'Unknown scenarioKey' }, 404, request, env);
 
         const validStepIds = new Set(scenario.steps.map(step => step.id));
@@ -157,6 +198,7 @@ export default {
           .filter(d => validStepIds.has(d.stepId) && typeof d.optionKey === 'string')
           .map(d => ({ stepId: d.stepId, optionKey: d.optionKey }));
 
+        if (evAware) return json(gradeEvScenario(scenario, decisions), 200, request, env);
         if (advanced) return json(gradeAdvancedScenario(scenario, decisions), 200, request, env);
         const report = gradeScenario(scenario, decisions);
         return json(enrichGradeReport(report, scenario), 200, request, env);
