@@ -1,0 +1,127 @@
+.seat-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: -8px 0 18px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.seat-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: #566761;
+}
+
+.hero-dot { background: var(--accent); border-color: var(--accent); }
+.action-dot { background: var(--gold); border-color: var(--gold); }
+.waiting-dot { background: transparent; border: 2px dashed #b6c7c1; }
+.folded-dot { background: #4f5c58; opacity: .45; }
+
+.seat {
+  width: 132px;
+  height: 58px;
+  transition: opacity .16s ease, filter .16s ease, transform .16s ease;
+}
+
+.seat-chip {
+  min-width: 76px;
+  max-width: 132px;
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px;
+  line-height: 1.05;
+}
+
+.seat-position,
+.seat-status {
+  display: block;
+  white-space: nowrap;
+}
+
+.seat-position {
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .02em;
+}
+
+.seat-status {
+  color: #d8e4e0;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .045em;
+}
+
+.seat.hero .seat-chip {
+  box-shadow: 0 0 0 3px rgba(115,226,183,.18), 0 9px 22px rgba(0,0,0,.26);
+}
+
+.seat.hero .seat-status {
+  color: #173c30;
+}
+
+.seat.opponent.acted .seat-chip,
+.seat.opponent.active .seat-chip {
+  background: #181a14;
+  border-color: rgba(241,199,106,.68);
+  box-shadow: 0 0 0 2px rgba(241,199,106,.08), 0 9px 20px rgba(0,0,0,.22);
+}
+
+.seat.opponent.acted .seat-position,
+.seat.opponent.active .seat-position,
+.seat.acted .seat-status,
+.seat.active .seat-status {
+  color: var(--gold);
+}
+
+.seat.waiting .seat-chip {
+  background: rgba(7,17,14,.7);
+  border-style: dashed;
+  border-color: rgba(214,230,224,.42);
+}
+
+.seat.waiting .seat-status {
+  color: #d6e6e0;
+}
+
+.seat.folded {
+  opacity: .32;
+  filter: grayscale(.75);
+}
+
+.seat.folded .seat-chip {
+  background: rgba(8,14,12,.62);
+  border-color: rgba(123,143,136,.25);
+  box-shadow: none;
+}
+
+.seat.folded .seat-position,
+.seat.folded .seat-status {
+  color: #86958f;
+}
+
+@media (max-width: 850px) {
+  .seat { width: 108px; }
+  .seat-chip { max-width: 108px; padding: 6px 8px; }
+  .seat-position { font-size: 10px; }
+  .seat-status { font-size: 8px; }
+  .seat-legend { gap: 7px 11px; font-size: 10px; }
+}
+
+@media (max-width: 560px) {
+  .seat-legend { justify-content: flex-start; }
+  .seat { width: 92px; }
+  .seat-chip { max-width: 92px; min-width: 60px; }
+  .seat-status { white-space: normal; line-height: 1.15; }
+}
