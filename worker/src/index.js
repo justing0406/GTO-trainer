@@ -1,5 +1,6 @@
 import { RULEBOOK_VERSION, RULEBOOK_SECTIONS, GLOSSARY, OPENING_RANGE_SPECS, BIG_BLIND_DEFENSE_SPECS } from './rules.js';
 import { CATEGORY_META, generateScenario, gradeScenario, listScriptedHands, publicScenario, resolveScenario } from './scenarios.js';
+import { enrichGradeReport } from './range-feedback.js';
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -111,7 +112,8 @@ export default {
         const decisions = body.decisions
           .filter(d => validStepIds.has(d.stepId) && typeof d.optionKey === 'string')
           .map(d => ({ stepId: d.stepId, optionKey: d.optionKey }));
-        return json(gradeScenario(scenario, decisions), 200, request, env);
+        const report = gradeScenario(scenario, decisions);
+        return json(enrichGradeReport(report, scenario), 200, request, env);
       }
 
       return json({ error: 'Not found' }, 404, request, env);
